@@ -12,6 +12,10 @@
 namespace xel{
 
   // forward declaration
+  class xel;
+  typedef std::shared_ptr<xel> xel_sptr;
+  typedef std::weak_ptr<xel> xel_wptr;
+
   class epoll;
   typedef std::shared_ptr<epoll> ep_sptr;
   typedef std::weak_ptr<epoll> ep_wptr;
@@ -30,15 +34,12 @@ namespace xel{
   typedef std::weak_ptr<event>   ev_wptr;
   typedef enum { READ, WRITE, ACCEPT } E_TYPE;
   typedef enum { ACTIVE, INACTIVE } E_STATUS;
-  typedef std::function<void(ev_wptr)> HANDLER;
+  typedef std::function<void(int)> HANDLER;
 
   class connection;
   typedef std::shared_ptr<connection> conn_sptr;
   typedef std::weak_ptr<connection> conn_wptr;
 
-  class xel;
-  typedef std::shared_ptr<xel> xel_sptr;
-  typedef std::weak_ptr<xel> xel_wptr;
   typedef uintptr_t f_size_t;
   typedef std::vector<ev_sptr >      EVENTS;
   typedef std::vector<conn_sptr > CONNECTIONS;
@@ -52,6 +53,9 @@ namespace xel{
     int  add_event(int fd, EVENT_TYPE type);
     int  del_event(int fd, EVENT_TYPE type);
     int  process_event(void);
+    void set_accpet_handler(int fd, HANDLER accept_handler);
+    void set_read_handler(int fd, HANDLER read_handler);
+    void set_write_handler(int fd, HANDLER write_handler);
     ev_wptr get_event_by_fd(int fd, E_TYPE type);
   private:
     ep_sptr ep;

@@ -52,7 +52,7 @@ int xel::epoll::process_event(void)
 {
   int err;
   uint32_t revent;
-  connection *c;
+  connection *c = NULL;
   ev_wptr rev, wev;
 
   int nevent = epoll_wait(ep, event_list.ee, event_list.nevents, -1);
@@ -62,10 +62,12 @@ int xel::epoll::process_event(void)
     perror(strerror(errno));
     return -1;
   }
+
   if (nevent == 0){
     // TODO: err == EINTR when timeout
     return -1;
   }
+
   for(int i = 0; i < nevent; i++){
     // TODO: find a better way to deal with the raw pointer
     c = static_cast<connection *>(event_list.ee[i].data.ptr);
@@ -75,14 +77,15 @@ int xel::epoll::process_event(void)
     if (revent & (EPOLLERR|EPOLLHUP)){
       // epoll_wait error on fd: %d, event:
     }
+
     if (revent & EPOLLIN){
       if(rev.lock()->handler()){
-        rev.lock()->handler()(rev);
+        rev.lock()->handler()(rev.lock()->fd());
       }
     }
     if (revent & EPOLLOUT){
       if(rev.lock()->handler()){
-        wev.lock()->handler()(rev);
+        wev.lock()->handler()(wev.lock()->fd());
       }
     }
   }
@@ -123,6 +126,7 @@ int xel::epoll::del_event(ev_wptr ev, EVENT_TYPE type)
     perror(strerror(errno));
     return -1;
   }
+  ev.lock()->set_status(E_STATUS::INACTIVE);
   return 0;
 }
 
@@ -160,6 +164,7 @@ int xel::epoll::add_event(ev_wptr ev, EVENT_TYPE type)
     perror(strerror(errno));
     return -1;
   }
+  ev.lock()->set_status(E_STATUS::ACTIVE);
   return 0;
 }
 

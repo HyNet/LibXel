@@ -28,11 +28,16 @@ namespace xel {
     ~event();
     inline void set_handler(HANDLER handler){ e_handler = handler; }
     inline void set_conn(conn_wptr c){ e_conn = c; }
-    inline int fd() {return e_fd; }
+    inline void set_event_type(E_TYPE type) { e_type = type; }
+    inline void set_status(E_STATUS status) { e_status = status; }
+    inline int fd() { return e_fd; }
     inline E_TYPE type() { return e_type; }
     inline conn_wptr conn(){ return e_conn; }
     inline HANDLER handler(){ return e_handler; }
     inline E_STATUS status(){ return e_status; }
+  private:
+    event(const event&){}
+    const event& operator=(const event& e){ if(this != &e){} return *this; }
   private:
     int e_fd;
     E_TYPE e_type;

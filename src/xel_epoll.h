@@ -42,6 +42,8 @@ namespace xel{
     int  add_event(ev_wptr ev, EVENT_TYPE type);
     int  del_event(ev_wptr ev, EVENT_TYPE type);
   private:
+    epoll(const epoll&){}
+    epoll& operator=(const epoll& ep){ if(this != &ep){} return *this; }
     ACTION_TYPE get_event_state(ev_wptr ev, EVENT_TYPE type, bool for_add = true);
   private:
     fd ep = -1;

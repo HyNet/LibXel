@@ -80,3 +80,23 @@ int xel::xel::process_event()
 {
   return ep->process_event();
 }
+
+void xel::xel::set_accpet_handler(int fd, HANDLER accept_handler)
+{
+  ev_wptr ev = get_event_by_fd(fd, E_TYPE::ACCEPT);
+  ev.lock()->set_event_type(E_TYPE::ACCEPT);
+  ev.lock()->set_handler(accept_handler);
+}
+
+void xel::xel::set_read_handler(int fd, HANDLER read_handler)
+{
+  ev_wptr ev = get_event_by_fd(fd, E_TYPE::READ);
+  ev.lock()->set_event_type(E_TYPE::READ);
+  ev.lock()->set_handler(read_handler);
+}
+
+void xel::xel::set_write_handler(int fd, HANDLER write_handler)
+{
+  ev_wptr ev = get_event_by_fd(fd, E_TYPE::WRITE);
+  ev.lock()->set_handler(write_handler);
+}
