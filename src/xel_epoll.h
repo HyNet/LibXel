@@ -24,15 +24,15 @@ namespace xel{
                                   ep_event *ee;
                                   int       nevents;
                                 } event_list_t;
-    typedef enum {
-                  READ_EVENT =(EPOLLIN|EPOLLRDHUP),
-                  WRITE_EVENT=(EPOLLOUT)
-                 } EVENT_TYPE;
-    typedef enum {
-                  ADD_EVENT = EPOLL_CTL_ADD,
-                  MOD_EVENT = EPOLL_CTL_MOD,
-                  DEL_EVENT = EPOLL_CTL_DEL
-                 } ACTION_TYPE;
+    // typedef enum {
+    //               READ_EVENT =(EPOLLIN|EPOLLRDHUP),
+    //               WRITE_EVENT=(EPOLLOUT)
+    //              } EVENT_TYPE;
+    // typedef enum {
+    //               ADD_EVENT = EPOLL_CTL_ADD,
+    //               MOD_EVENT = EPOLL_CTL_MOD,
+    //               DEL_EVENT = EPOLL_CTL_DEL
+    //              } ACTION_TYPE;
   public:
     epoll();
     ~epoll();
@@ -41,6 +41,8 @@ namespace xel{
     int  process_event(void);
     int  add_event(ev_wptr ev, EVENT_TYPE type);
     int  del_event(ev_wptr ev, EVENT_TYPE type);
+  private:
+    ACTION_TYPE get_event_state(ev_wptr ev, EVENT_TYPE type, bool for_add = true);
   private:
     fd ep = -1;
     event_list_t event_list = {nullptr, 0};

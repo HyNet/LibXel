@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdint.h>
+#include "xel.h"
 #include "xel_epoll.h"
 #include "xel_event.h"
 #include "xel_connection.h"
@@ -66,7 +67,7 @@ int xel::epoll::process_event(void)
     return -1;
   }
   for(int i = 0; i < nevent; i++){
-    // TODO: handle the event_list return by epoll_wait
+    // TODO: find a better way to deal with the raw pointer
     c = static_cast<connection *>(event_list.ee[i].data.ptr);
     revent = event_list.ee[i].events;
     rev = c->read_event();
@@ -75,38 +76,49 @@ int xel::epoll::process_event(void)
       // epoll_wait error on fd: %d, event:
     }
     if (revent & EPOLLIN){
-      // TODO: call read event handler
-      rev.lock()->handler()(rev);
+      if(rev.lock()->handler()){
+        rev.lock()->handler()(rev);
+      }
     }
     if (revent & EPOLLOUT){
-      // TODO: call write event handler
-      wev.lock()->handler()(rev);
+      if(rev.lock()->handler()){
+        wev.lock()->handler()(rev);
+      }
     }
   }
   return 0;
 }
 
-int xel::epoll::add_event(ev_wptr ev, EVENT_TYPE type)
+int xel::epoll::del_event(ev_wptr ev, EVENT_TYPE type)
 {
-  int op;
   ep_event ee;
-  conn_wptr c;
 
   if (ev.expired()){
     // TODO: error log
     return -1;
   }
 
-  // TODO: set op depend on prev action;
-  op = ADD_EVENT;
+  ACTION_TYPE op = get_event_state(ev, type, false);
+  switch(op){
+  case ACTION_TYPE::DEL_EVENT:
+    ee.events = 0;
+    ee.data.ptr = nullptr;
+    break;
+  case ACTION_TYPE::MOD_EVENT:
+    ee.events = (type == EVENT_TYPE::READ_EVENT?
+                         EVENT_TYPE::WRITE_EVENT:
+                         EVENT_TYPE::READ_EVENT);
+    // TODO: find a better way to deal with
+    //       the transfer from shared_ptr to raw pointer
+    //       for now it is safe,
+    //       because of the global lifecycle of events class
+    ee.data.ptr = (void *)(ev.lock()->conn().lock().get());
+    break;
+  default:
+    // TODO: error log
+    break;
+  }
 
-  // TODO: set events depend on prev events;
-  ee.events = type;
-  // TODO: find a better way to deal with
-  //       the transfer from shared_ptr to raw pointer
-  //       for now it is safe,
-  //       because of the global lifecycle of events class
-  ee.data.ptr = (void *)(ev.lock()->conn().lock().get());
   if (epoll_ctl(ep, op, ee.data.fd, &ee) == -1){
     perror(strerror(errno));
     return -1;
@@ -114,26 +126,66 @@ int xel::epoll::add_event(ev_wptr ev, EVENT_TYPE type)
   return 0;
 }
 
-int xel::epoll::del_event(ev_wptr ev, EVENT_TYPE type)
+int xel::epoll::add_event(ev_wptr ev, EVENT_TYPE type)
 {
-  int op;
   ep_event ee;
+  uint32_t events;
 
   if(ev.expired()){
     // TODO: error log
     return -1;
   }
 
-  // TODO: set op depend on prev action, maybe modify
-  op = DEL_EVENT;
+  ACTION_TYPE op = get_event_state(ev, type);
+  switch(op){
+  case ACTION_TYPE::ADD_EVENT:
+    events = (type == EVENT_TYPE::READ_EVENT?
+                  EVENT_TYPE::READ_EVENT :
+                  EVENT_TYPE::WRITE_EVENT);
+    break;
+  case ACTION_TYPE::MOD_EVENT:
+    events = EVENT_TYPE::READ_EVENT|EVENT_TYPE::WRITE_EVENT;
+    break;
+  default:
+    // TODO: error log; happened when DEL_EVENT
+    //       I think this will never happend :)
+    events = EVENT_TYPE::READ_EVENT|EVENT_TYPE::WRITE_EVENT;
+    break;
+  }
 
-  // TODO: set ee depend on prev ee
-  ee.events = 0;
-  ee.data.ptr = nullptr;
+  ee.events = events;
+  ee.data.ptr = (void *)(ev.lock()->conn().lock().get());
 
   if (epoll_ctl(ep, op, ev.lock()->fd(), &ee) == -1){
     perror(strerror(errno));
     return -1;
   }
   return 0;
+}
+
+xel::ACTION_TYPE
+xel::epoll::get_event_state(ev_wptr ev, EVENT_TYPE type, bool for_add /*true*/)
+{
+  conn_wptr c = ev.lock()->conn();
+  ACTION_TYPE action = for_add? ACTION_TYPE::ADD_EVENT: ACTION_TYPE::DEL_EVENT;
+  E_STATUS prev = E_STATUS::INACTIVE;
+
+  switch(type){
+  case READ_EVENT:
+    prev = c.lock()->write_event().lock()->status();
+    action = (prev == E_STATUS::ACTIVE?
+                          ACTION_TYPE::MOD_EVENT:
+                          action);
+    break;
+  case WRITE_EVENT:
+    prev = c.lock()->read_event().lock()->status();
+    action = (prev == E_STATUS::ACTIVE?
+                          ACTION_TYPE::MOD_EVENT:
+                          action);
+    break;
+  default:
+    // TODO: error log, enum type keep this away :)
+    break;
+  }
+  return action;
 }

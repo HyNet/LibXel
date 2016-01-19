@@ -61,3 +61,22 @@ xel::ev_wptr xel::xel::get_event_by_fd(int fd, E_TYPE type)
   }
   return ev_wptr();
 }
+
+int xel::xel::add_event(int fd, EVENT_TYPE type)
+{
+  ev_wptr ev = (type == EVENT_TYPE::READ_EVENT ?
+                        revents[fd]: wevents[fd]);
+  return ep->add_event(ev, type);
+}
+
+int xel::xel::del_event(int fd, EVENT_TYPE type)
+{
+  ev_wptr ev = (type == EVENT_TYPE::READ_EVENT ?
+                        revents[fd]: wevents[fd]);
+  return ep->del_event(ev, type);
+}
+
+int xel::xel::process_event()
+{
+  return ep->process_event();
+}

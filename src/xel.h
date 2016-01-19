@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <vector>
+#include <sys/epoll.h>
 
 namespace xel{
 
@@ -14,6 +15,15 @@ namespace xel{
   class epoll;
   typedef std::shared_ptr<epoll> ep_sptr;
   typedef std::weak_ptr<epoll> ep_wptr;
+  typedef enum {
+                READ_EVENT =(EPOLLIN|EPOLLRDHUP),
+                WRITE_EVENT=(EPOLLOUT)
+               } EVENT_TYPE;
+  typedef enum {
+                ADD_EVENT = EPOLL_CTL_ADD,
+                MOD_EVENT = EPOLL_CTL_MOD,
+                DEL_EVENT = EPOLL_CTL_DEL
+               } ACTION_TYPE;
 
   class event;
   typedef std::shared_ptr<event> ev_sptr;
@@ -39,6 +49,9 @@ namespace xel{
     ~xel();
     bool init();
     bool destory();
+    int  add_event(int fd, EVENT_TYPE type);
+    int  del_event(int fd, EVENT_TYPE type);
+    int  process_event(void);
     ev_wptr get_event_by_fd(int fd, E_TYPE type);
   private:
     ep_sptr ep;

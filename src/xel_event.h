@@ -32,10 +32,11 @@ namespace xel {
     inline E_TYPE type() { return e_type; }
     inline conn_wptr conn(){ return e_conn; }
     inline HANDLER handler(){ return e_handler; }
+    inline E_STATUS status(){ return e_status; }
   private:
     int e_fd;
     E_TYPE e_type;
-    E_STATUS e_status;
+    E_STATUS e_status = E_STATUS::INACTIVE;
     HANDLER e_handler;
     conn_wptr e_conn;
   };
