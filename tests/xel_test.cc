@@ -60,9 +60,10 @@ int main(int argc, char **argv)
     exit(1);
   }
 
+  const int port = 8000;
   serveraddr.sin_family = AF_INET;
   serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
-  serveraddr.sin_port = htons(8000);
+  serveraddr.sin_port = htons(port);
 
   if (bind(sock_fd, (struct sockaddr *)&serveraddr,
            sizeof(struct sockaddr_in)) == -1){
@@ -75,10 +76,10 @@ int main(int argc, char **argv)
     exit(1);
   }
 
-  printf("listen on fd: %d, port: %d\n", sock_fd, 8000);
+  printf("listen on fd: %d, port: %d\n", sock_fd, port);
 
-  // this is intersting here:
-  // we get a partial function object, it's a clear idea :)
+  // this is interesting here:
+  // we get a partial function object, it's a clever idea :)
   auto handler = std::bind(accept_handler,
                            xel::xel_wptr(el),
                            std::placeholders::_1);
