@@ -39,8 +39,8 @@ namespace xel{
     bool init(ee_size_t ee_size = 512);
     bool done(void);
     int  process_event(void);
-    int  add_event(ev_wptr ev, EVENT_TYPE type);
-    int  del_event(ev_wptr ev, EVENT_TYPE type);
+    int  add_event(ev_wptr ev, EVENT_TYPE type, int flag = EPOLLET);
+    int  del_event(ev_wptr ev, EVENT_TYPE type, int flag = EPOLLET);
   private:
     epoll(const epoll&){}
     epoll& operator=(const epoll& ep){ if(this != &ep){} return *this; }

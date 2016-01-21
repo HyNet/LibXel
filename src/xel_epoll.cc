@@ -92,35 +92,62 @@ int xel::epoll::process_event(void)
   return 0;
 }
 
-int xel::epoll::del_event(ev_wptr ev, EVENT_TYPE type)
+int xel::epoll::del_event(ev_wptr ev, EVENT_TYPE type, int flag /*EPOLLET*/)
 {
   ep_event ee;
+  ACTION_TYPE op;
+  EVENT_TYPE prev;
+  ev_wptr e;
+  conn_wptr c;
+
 
   if (ev.expired()){
     // TODO: error log
     return -1;
   }
 
-  ACTION_TYPE op = get_event_state(ev, type, false);
-  switch(op){
-  case ACTION_TYPE::DEL_EVENT:
+  c = ev.lock()->conn();
+
+  if(type == EVENT_TYPE::READ_EVENT){
+    e = c.lock()->write_event();
+    prev = EVENT_TYPE::WRITE_EVENT;
+  } else {
+    e = c.lock()->read_event();
+    prev = EVENT_TYPE::READ_EVENT;
+  }
+
+  if(e.lock()->status() == E_STATUS::ACTIVE){
+    op = ACTION_TYPE::MOD_EVENT;
+    ee.events = prev | flag;
+    ee.data.ptr = (void *)(ev.lock()->conn().lock().get());
+  } else {
+    op = ACTION_TYPE::DEL_EVENT;
     ee.events = 0;
     ee.data.ptr = nullptr;
-    break;
-  case ACTION_TYPE::MOD_EVENT:
-    ee.events = (type == EVENT_TYPE::READ_EVENT?
-                         EVENT_TYPE::WRITE_EVENT:
-                         EVENT_TYPE::READ_EVENT);
-    // TODO: find a better way to deal with
-    //       the transfer from shared_ptr to raw pointer
-    //       for now it is safe,
-    //       because of the global lifecycle of events class
-    ee.data.ptr = (void *)(ev.lock()->conn().lock().get());
-    break;
-  default:
-    // TODO: error log
-    break;
+    ev.lock()->set_status(E_STATUS::INACTIVE);
+    return 0;
   }
+
+  // ACTION_TYPE op = get_event_state(ev, type, false);
+  // switch(op){
+  // case ACTION_TYPE::DEL_EVENT:
+  //   ee.events = 0;
+  //   ee.data.ptr = nullptr;
+  //   break;
+  // case ACTION_TYPE::MOD_EVENT:
+  //   ee.events = (type == EVENT_TYPE::READ_EVENT?
+  //                        EVENT_TYPE::WRITE_EVENT:
+  //                        EVENT_TYPE::READ_EVENT);
+  //   // TODO: find a better way to deal with
+  //   //       the transfer from shared_ptr to raw pointer
+  //   //       for now it is safe,
+  //   //       because of the global lifecycle of events class
+  //   ee.data.ptr = (void *)(ev.lock()->conn().lock().get());
+  //   break;
+  // default:
+  //   // TODO: error log
+  //   break;
+  // }
 
   if (epoll_ctl(ep, op, ee.data.fd, &ee) == -1){
     perror(strerror(errno));
@@ -130,34 +157,53 @@ int xel::epoll::del_event(ev_wptr ev, EVENT_TYPE type)
   return 0;
 }
 
-int xel::epoll::add_event(ev_wptr ev, EVENT_TYPE type)
+int xel::epoll::add_event(ev_wptr ev, EVENT_TYPE type, int flag /*EPOLLET*/)
 {
   ep_event ee;
-  uint32_t events;
+  uint32_t events, prev;
+  ACTION_TYPE op;
+  ev_wptr e;
+  conn_wptr c;
 
   if(ev.expired()){
     // TODO: error log
     return -1;
   }
-
-  ACTION_TYPE op = get_event_state(ev, type);
-  switch(op){
-  case ACTION_TYPE::ADD_EVENT:
-    events = (type == EVENT_TYPE::READ_EVENT?
-                  EVENT_TYPE::READ_EVENT :
-                  EVENT_TYPE::WRITE_EVENT);
-    break;
-  case ACTION_TYPE::MOD_EVENT:
-    events = EVENT_TYPE::READ_EVENT|EVENT_TYPE::WRITE_EVENT;
-    break;
-  default:
-    // TODO: error log; happened when DEL_EVENT
-    //       I think this will never happend :)
-    events = EVENT_TYPE::READ_EVENT|EVENT_TYPE::WRITE_EVENT;
-    break;
+  c = ev.lock()->conn();
+  events = type;
+  if (type == EVENT_TYPE::READ_EVENT){
+    e = c.lock()->write_event();
+    prev = EVENT_TYPE::WRITE_EVENT;
+  } else {
+    e = c.lock()->read_event();
+    prev = EVENT_TYPE::READ_EVENT;
   }
 
-  ee.events = events;
+  if(e.lock()->status() == E_STATUS::ACTIVE){
+    op = ACTION_TYPE::MOD_EVENT;
+    events |= prev;
+  } else {
+    op = ACTION_TYPE::ADD_EVENT;
+  }
+  // ACTION_TYPE op = get_event_state(ev, type);
+  // switch(op){
+  // case ACTION_TYPE::ADD_EVENT:
+  //   events = (type == EVENT_TYPE::READ_EVENT?
+  //                 EVENT_TYPE::READ_EVENT :
+  //                 EVENT_TYPE::WRITE_EVENT);
+
+  //   break;
+  // case ACTION_TYPE::MOD_EVENT:
+  //   events = EVENT_TYPE::READ_EVENT|EVENT_TYPE::WRITE_EVENT;
+  //   break;
+  // default:
+  //   // TODO: error log; happened when DEL_EVENT
+  //   //       I think this will never happend :)
+  //   events = EVENT_TYPE::READ_EVENT|EVENT_TYPE::WRITE_EVENT;
+  //   break;
+  // }
+
+  ee.events = events | flag;
   ee.data.ptr = (void *)(ev.lock()->conn().lock().get());
 
   if (epoll_ctl(ep, op, ev.lock()->fd(), &ee) == -1){
@@ -168,6 +214,7 @@ int xel::epoll::add_event(ev_wptr ev, EVENT_TYPE type)
   return 0;
 }
 
+// deprecate
 xel::ACTION_TYPE
 xel::epoll::get_event_state(ev_wptr ev, EVENT_TYPE type, bool for_add /*true*/)
 {
