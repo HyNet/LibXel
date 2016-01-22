@@ -7,6 +7,7 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
 #include <memory>
 #include "xel.h"
 
@@ -25,11 +26,12 @@ namespace xel {
     inline ev_wptr read_event(){ return revent; }
     inline ev_wptr write_event(){ return wevent; }
     inline int fd(){ return c_fd; }
+    void set_sockaddr(short int family, unsigned long addr, short int port);
   private:
     int c_fd;
     ev_wptr revent;
     ev_wptr wevent;
-    struct sockaddr *sockaddr;
+    struct sockaddr *c_sockaddr;
   };
 }
 

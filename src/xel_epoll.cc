@@ -48,14 +48,14 @@ bool xel::epoll::done(void)
 }
 
 
-int xel::epoll::process_event(void)
+int xel::epoll::process_event(msec_t timer /*-1*/)
 {
   int err;
   uint32_t revent;
   connection *c = NULL;
   ev_wptr rev, wev;
 
-  int nevent = epoll_wait(ep, event_list.ee, event_list.nevents, -1);
+  int nevent = epoll_wait(ep, event_list.ee, event_list.nevents, timer);
   err = (nevent == -1)? errno: 0;
   if (err){
     // TODO: err == EINTR when timeout
@@ -132,22 +132,6 @@ int xel::epoll::del_event(ev_wptr ev, EVENT_TYPE type, int flag /*EPOLLET*/)
   // switch(op){
   // case ACTION_TYPE::DEL_EVENT:
   //   ee.events = 0;
-  //   ee.data.ptr = nullptr;
-  //   break;
-  // case ACTION_TYPE::MOD_EVENT:
-  //   ee.events = (type == EVENT_TYPE::READ_EVENT?
-  //                        EVENT_TYPE::WRITE_EVENT:
-  //                        EVENT_TYPE::READ_EVENT);
-  //   // TODO: find a better way to deal with
-  //   //       the transfer from shared_ptr to raw pointer
-  //   //       for now it is safe,
-  //   //       because of the global lifecycle of events class
-  //   ee.data.ptr = (void *)(ev.lock()->conn().lock().get());
-  //   break;
-  // default:
-  //   // TODO: error log
-  //   break;
-  // }
 
   if (epoll_ctl(ep, op, ee.data.fd, &ee) == -1){
     perror(strerror(errno));
@@ -185,23 +169,6 @@ int xel::epoll::add_event(ev_wptr ev, EVENT_TYPE type, int flag /*EPOLLET*/)
   } else {
     op = ACTION_TYPE::ADD_EVENT;
   }
-  // ACTION_TYPE op = get_event_state(ev, type);
-  // switch(op){
-  // case ACTION_TYPE::ADD_EVENT:
-  //   events = (type == EVENT_TYPE::READ_EVENT?
-  //                 EVENT_TYPE::READ_EVENT :
-  //                 EVENT_TYPE::WRITE_EVENT);
-
-  //   break;
-  // case ACTION_TYPE::MOD_EVENT:
-  //   events = EVENT_TYPE::READ_EVENT|EVENT_TYPE::WRITE_EVENT;
-  //   break;
-  // default:
-  //   // TODO: error log; happened when DEL_EVENT
-  //   //       I think this will never happend :)
-  //   events = EVENT_TYPE::READ_EVENT|EVENT_TYPE::WRITE_EVENT;
-  //   break;
-  // }
 
   ee.events = events | flag;
   ee.data.ptr = (void *)(ev.lock()->conn().lock().get());
@@ -214,30 +181,3 @@ int xel::epoll::add_event(ev_wptr ev, EVENT_TYPE type, int flag /*EPOLLET*/)
   return 0;
 }
 
-// deprecate
-xel::ACTION_TYPE
-xel::epoll::get_event_state(ev_wptr ev, EVENT_TYPE type, bool for_add /*true*/)
-{
-  conn_wptr c = ev.lock()->conn();
-  ACTION_TYPE action = for_add? ACTION_TYPE::ADD_EVENT: ACTION_TYPE::DEL_EVENT;
-  E_STATUS prev = E_STATUS::INACTIVE;
-
-  switch(type){
-  case READ_EVENT:
-    prev = c.lock()->write_event().lock()->status();
-    action = (prev == E_STATUS::ACTIVE?
-                          ACTION_TYPE::MOD_EVENT:
-                          action);
-    break;
-  case WRITE_EVENT:
-    prev = c.lock()->read_event().lock()->status();
-    action = (prev == E_STATUS::ACTIVE?
-                          ACTION_TYPE::MOD_EVENT:
-                          action);
-    break;
-  default:
-    // TODO: error log, enum type keep this away :)
-    break;
-  }
-  return action;
-}

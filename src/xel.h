@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 #include <sys/epoll.h>
+#include <sys/socket.h>
 
 namespace xel{
 
@@ -15,10 +16,13 @@ namespace xel{
   class xel;
   typedef std::shared_ptr<xel> xel_sptr;
   typedef std::weak_ptr<xel> xel_wptr;
+  typedef std::shared_ptr<struct sockaddr> SA_sptr;
+  typedef std::weak_ptr<struct sockaddr> SA_wptr;
 
   class epoll;
   typedef std::shared_ptr<epoll> ep_sptr;
   typedef std::weak_ptr<epoll> ep_wptr;
+  typedef uintptr_t msec_t;
   typedef enum {
                 READ_EVENT =(EPOLLIN|EPOLLRDHUP),
                 WRITE_EVENT=(EPOLLOUT)
@@ -43,6 +47,13 @@ namespace xel{
   typedef uintptr_t f_size_t;
   typedef std::vector<ev_sptr >      EVENTS;
   typedef std::vector<conn_sptr > CONNECTIONS;
+
+  class rb_tree;
+  class rb_tree_node;
+  typedef msec_t rb_tree_key_t;
+  typedef enum {BLACK, RED} COLOR;
+
+  class timer;
 
   class xel{
   public:

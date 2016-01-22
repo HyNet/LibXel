@@ -13,6 +13,15 @@
 
 static void read_handler(xel::xel_wptr xel, int fd);
 static void write_handler(xel::xel_wptr xel, int fd);
+static void rprint_handler(xel::xel_wptr xel, int fd)
+{
+  printf("this is read handler\n");
+}
+
+static void wprint_handler(xel::xel_wptr xel, int fd)
+{
+  printf("this is write handler\n");
+}
 
 void nonblocking(int sockfd)
 {
@@ -45,6 +54,14 @@ void accept_handler(xel::xel_wptr xel, int fd)
     nonblocking(client_fd);
 
     auto r_handler = std::bind(read_handler,xel, std::placeholders::_1);
+    auto r_print_handler = std::bind(rprint_handler,xel, std::placeholders::_1);
+    auto w_print_handler = std::bind(wprint_handler,xel, std::placeholders::_1);
+
+    // xel.lock()->set_read_handler(client_fd, r_print_handler);
+    // xel.lock()->add_event(client_fd, xel::EVENT_TYPE::READ_EVENT);
+    // xel.lock()->set_write_handler(client_fd, w_print_handler);
+    // xel.lock()->add_event(client_fd, xel::EVENT_TYPE::WRITE_EVENT);
+
     xel.lock()->set_read_handler(client_fd, r_handler);
 
     xel.lock()->add_event(client_fd, xel::EVENT_TYPE::READ_EVENT);
@@ -58,12 +75,13 @@ void accept_handler(xel::xel_wptr xel, int fd)
 void read_handler(xel::xel_wptr xel, int fd)
 {
   const int buf_size = 1024;
-  char buf[buf_size];
+  char buf[buf_size] ={0};
   ssize_t cnt = 0;
   ssize_t nread = 0;
 
   do {
      nread = recv(fd, buf + cnt, buf_size, 0);
+     printf("recv: %ld byte data\n", nread);
      if(nread == -1){
        if (errno == EAGAIN || errno == EWOULDBLOCK) {
          // nothing left to read;
@@ -73,8 +91,15 @@ void read_handler(xel::xel_wptr xel, int fd)
          return;
        }
      }
-     cnt += nread;
-  } while(nread >= 0 || cnt <= buf_size);
+     if(nread == 0){
+       // on condition:
+       // 1. nothing left to read
+       // 2. client connect to server, close connect without calling send
+     }
+     if(nread > 0){
+       cnt += nread;
+     }
+  } while(nread > 0 && cnt <= buf_size);
   printf("%s\n", buf);
   write_handler(xel, fd);
   close(fd);
@@ -91,6 +116,7 @@ void write_handler(xel::xel_wptr xel, int fd)
 
   do {
     n = send(fd, buf + len - nleft, nleft, 0);
+    printf("send: %ld bytes data", n);
     if (n == -1){
       if (errno == EAGAIN || errno == EWOULDBLOCK){
         // no blocking mode failed send
@@ -101,8 +127,10 @@ void write_handler(xel::xel_wptr xel, int fd)
         return;
       }
     }
-    nleft -= n;
-  } while(n > 0 || nleft > 0);
+    if(n > 0){
+      nleft -= n;
+    }
+  } while(n > 0 && nleft > 0);
 }
 
 

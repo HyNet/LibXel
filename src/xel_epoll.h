@@ -11,7 +11,6 @@
 
 namespace xel{
 
-  // class epoll;
   // typedef std::shared_ptr<epoll> ep_sptr;
   // typedef std::weak_ptr<epoll> ep_wptr;
 
@@ -38,13 +37,12 @@ namespace xel{
     ~epoll();
     bool init(ee_size_t ee_size = 512);
     bool done(void);
-    int  process_event(void);
+    int  process_event(msec_t timer = -1);
     int  add_event(ev_wptr ev, EVENT_TYPE type, int flag = EPOLLET);
     int  del_event(ev_wptr ev, EVENT_TYPE type, int flag = EPOLLET);
   private:
     epoll(const epoll&){}
     epoll& operator=(const epoll& ep){ if(this != &ep){} return *this; }
-    ACTION_TYPE get_event_state(ev_wptr ev, EVENT_TYPE type, bool for_add = true);
   private:
     fd ep = -1;
     event_list_t event_list = {nullptr, 0};

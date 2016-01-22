@@ -13,3 +13,7 @@ xel::connection::~connection()
 {
 }
 
+void xel::connection::set_sockaddr(short family, unsigned long addr, short port)
+{
+}
+
