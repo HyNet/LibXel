@@ -49,11 +49,22 @@ namespace xel{
   typedef std::vector<conn_sptr > CONNECTIONS;
 
   class rb_tree;
+  typedef std::shared_ptr<rb_tree> rbtree_sptr;
+  typedef std::weak_ptr<rb_tree> rbtree_wptr;
   class rb_tree_node;
+  typedef std::shared_ptr<rb_tree_node> rbt_node_sptr;
+  typedef std::weak_ptr<rb_tree_node> rbt_node_wptr;
   typedef msec_t rb_tree_key_t;
   typedef enum {BLACK, RED} COLOR;
 
   class timer;
+  typedef std::shared_ptr<timer> tm_sptr;
+  typedef std::weak_ptr<timer> tm_wptr;
+
+  class timer_event;
+  typedef std::shared_ptr<timer_event> te_sptr;
+  typedef std::weak_ptr<timer_event> te_wptr;
+  typedef std::function<void(void)> TE_HANDLER;
 
   class xel{
   public:
@@ -63,13 +74,16 @@ namespace xel{
     bool destory();
     int  add_event(int fd, EVENT_TYPE type);
     int  del_event(int fd, EVENT_TYPE type);
-    int  process_event(void);
+    int  process_event_and_timers(void);
     void set_accpet_handler(int fd, HANDLER accept_handler);
     void set_read_handler(int fd, HANDLER read_handler);
     void set_write_handler(int fd, HANDLER write_handler);
+    te_wptr add_timer(msec_t timer, TE_HANDLER handler);
+    void del_timer(te_wptr te);
     ev_wptr get_event_by_fd(int fd, E_TYPE type);
   private:
     ep_sptr ep;
+    tm_sptr tm;
     EVENTS      revents;
     EVENTS      wevents;
     CONNECTIONS connections;

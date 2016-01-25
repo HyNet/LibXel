@@ -9,9 +9,11 @@
 #include "xel_epoll.h"
 #include "xel_event.h"
 #include "xel_connection.h"
+#include "xel_timer.h"
 
 xel::xel::xel()
 {
+  tm = std::make_shared<timer>();
 }
 
 xel::xel::~xel()
@@ -76,9 +78,19 @@ int xel::xel::del_event(int fd, EVENT_TYPE type)
   return ep->del_event(ev, type);
 }
 
-int xel::xel::process_event()
+int xel::xel::process_event_and_timers()
 {
-  return ep->process_event();
+  msec_t delta = 0;
+  msec_t cur_timer = 0;
+  msec_t timer = tm->find_timer();
+  delta = tm->get_cur_msec();
+  ep->process_event(timer);
+  cur_timer = tm->get_cur_msec();
+  delta = cur_timer - delta;
+  if(delta){
+    tm->expire_timers(cur_timer);
+  }
+  return 0;
 }
 
 void xel::xel::set_accpet_handler(int fd, HANDLER accept_handler)
@@ -99,4 +111,14 @@ void xel::xel::set_write_handler(int fd, HANDLER write_handler)
 {
   ev_wptr ev = get_event_by_fd(fd, E_TYPE::WRITE);
   ev.lock()->set_handler(write_handler);
+}
+
+xel::te_wptr xel::xel::add_timer(msec_t timer, TE_HANDLER handler)
+{
+  return tm->add_timer(timer, handler);
+}
+
+void xel::xel::del_timer(te_wptr te)
+{
+  return tm->del_timer(te);
 }

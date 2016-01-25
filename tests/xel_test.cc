@@ -13,6 +13,12 @@
 
 static void read_handler(xel::xel_wptr xel, int fd);
 static void write_handler(xel::xel_wptr xel, int fd);
+
+static void tprint_handler(void)
+{
+  printf("this is timer handler\n");
+}
+
 static void rprint_handler(xel::xel_wptr xel, int fd)
 {
   printf("this is read handler\n");
@@ -33,7 +39,7 @@ void accept_handler(xel::xel_wptr xel, int fd)
   int listen_fd = fd;
   int client_fd;
   struct sockaddr_in clientaddr;
-  socklen_t len;
+  socklen_t len = 0;
   memset(&clientaddr, 0, sizeof(struct sockaddr_in));
   nonblocking(listen_fd);
 
@@ -172,10 +178,12 @@ int main(int argc, char **argv)
                            xel::xel_wptr(el),
                            std::placeholders::_1);
 
+  auto t_handler = std::bind(tprint_handler);
   el->set_accpet_handler(sock_fd, handler);
   el->add_event(sock_fd, xel::EVENT_TYPE::READ_EVENT);
+  el->add_timer(3000, t_handler);
   for(;;){
-    el->process_event();
+    el->process_event_and_timers();
   }
 
   el->destory();
